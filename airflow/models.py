@@ -21,6 +21,7 @@ from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship
 
 from airflow import settings, utils
+from airflow import settings
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow.configuration import conf
 from airflow.utils import (
@@ -1987,3 +1988,28 @@ class SlaMiss(Base):
     def __repr__(self):
         return str((
             self.dag_id, self.task_id, self.execution_date.isoformat()))
+
+
+class BackfillJob(Base):
+    """
+    Model that stores a history of the SLA that have been missed.
+    It is used to keep track of SLA failures over time and to avoid double
+    triggering alert emails.
+    """
+    __tablename__ = "backfill_job"
+
+    id = Column(Integer, primary_key=True)
+    dag_id = Column(String(ID_LEN))
+    task_regex = Column(String(1024))
+    start_date = Column(DateTime, default=(datetime.now()-timedelta(1)).date())
+    end_date = Column(DateTime, default=(datetime.now()-timedelta(1)).date())
+    ignore_dependencies = Column(Boolean)
+    include_adhoc = Column(Boolean)
+    clear_first = Column(Boolean)
+    state = Column(String(32))
+    owner = Column(String(512))
+    job_id = Column(Integer)
+    created_dttm = Column(DateTime, default=func.now())
+
+    def __repr__(self):
+        return "Backfill for " + self.dag_id

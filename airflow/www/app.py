@@ -32,7 +32,7 @@ import markdown
 from sqlalchemy import or_
 
 import airflow
-from airflow import jobs, login, models, settings, utils
+from airflow import jobs, models, settings, utils, login
 from airflow.configuration import conf
 from airflow.models import State
 from airflow.settings import Session
@@ -1145,6 +1145,20 @@ class Airflow(BaseView):
             nodes=json.dumps(nodes, indent=2),
             edges=json.dumps(edges, indent=2),)
 
+    @expose('/backfill')
+    @login_required
+    def backfill(self):
+        BF = models.BackfillJob
+        bfid = request.args.get('bfid')
+        session = settings.Session()
+        bf = session.query(BF).filter(BF.id==bfid).first()
+        bf.state = State.RUNNING
+        session.commit()
+        session.close()
+        flash(
+            "Backfill on DAG '{bf.dag_id}' has been started.".format(locals()))
+        return redirect('/admin/backfilljob/')
+
     @expose('/duration')
     @login_required
     def duration(self):
@@ -1455,6 +1469,20 @@ def state_f(v, c, m, p):
         '{m.state}</span>'.format(**locals()))
 
 
+def backfill_state_f(v, c, m, p):
+    if not m.state:
+        url = url_for('airflow.backfill', bfid=m.id)
+        return Markup(
+            '<a href="{url}">'
+            '<button class="btn btn-danger">'
+                'START NOW!'
+            '</button></a>'.format(**locals()))
+    color = State.color(m.state)
+    return Markup(
+        '<span class="label" style="background-color:{color};">'
+        '{m.state}</span>'.format(**locals()))
+
+
 def duration_f(v, c, m, p):
     if m.end_date and m.duration:
         return timedelta(seconds=m.duration)
@@ -1463,6 +1491,7 @@ def duration_f(v, c, m, p):
 def datetime_f(v, c, m, p):
     attr = getattr(m, p)
     dttm = attr.isoformat() if attr else ''
+    dttm = dttm.replace("T00:00:00", "")
     if datetime.now().isoformat()[:4] == dttm[:4]:
         dttm = dttm[5:]
     return Markup("<nobr>{}</nobr>".format(dttm))
@@ -1590,6 +1619,48 @@ def label_link(v, c, m, p):
         'airflow.chart', chart_id=m.id, iteration_no=m.iteration_no,
         **default_params)
     return Markup("<a href='{url}'>{m.label}</a>".format(**locals()))
+
+
+class BackfillJobModelView(wwwutils.DataProfilingMixin, ModelView):
+    form_columns = (
+        'dag_id',
+        'task_regex',
+        'start_date',
+        'end_date',
+        'ignore_dependencies',
+        'include_adhoc',
+        'clear_first',)
+    column_list = (
+        'state',
+        'dag_id',
+        'owner',
+        'start_date',
+        'end_date',
+        'ignore_dependencies',
+        'include_adhoc',
+        'clear_first',)
+    column_formatters = dict(
+        state=backfill_state_f,
+        end_date=datetime_f,
+        start_date=datetime_f,
+        created_dttm=datetime_f,
+        dag_id=dag_link,
+    )
+    column_filters = ('dag_id', 'owner')
+    column_searchable_list = ('dag_id', 'owner')
+    column_default_sort = ('created_dttm', True)
+    form_choices = {
+        'dag_id': sorted([
+            (dag.dag_id, dag.dag_id)
+            for dag in dagbag.dags.values() if not dag.is_subdag])
+    }
+    def on_model_change(form, model, is_created):
+        model.owner = login.current_user
+
+mv = BackfillJobModelView(
+    models.BackfillJob, Session,
+    name="Backfills", category="Admin")
+admin.add_view(mv)
 
 
 class ChartModelView(wwwutils.DataProfilingMixin, ModelView):

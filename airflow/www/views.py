@@ -1484,6 +1484,7 @@ class Airflow(BaseView):
 class HomeView(AdminIndexView):
     @expose("/")
     @login_required
+    @wwwutils.action_logging
     def index(self):
         session = Session()
         DM = models.DagModel

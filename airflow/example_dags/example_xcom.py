@@ -5,6 +5,7 @@ import datetime
 dag = airflow.DAG(
     'example_xcom',
     start_date=datetime.datetime(2015, 1, 1),
+    schedule_interval='@hourly',
     default_args={'owner': 'airflow', 'provide_context': True})
 
 value_1 = [1, 2, 3]
@@ -42,4 +43,9 @@ push2 = airflow.operators.PythonOperator(
 pull = airflow.operators.PythonOperator(
     task_id='puller', dag=dag, python_callable=puller)
 
+bash = airflow.operators.BashOperator(
+    task_id='bash', dag=dag,
+    bash_command="""echo "{{ ti.xcom_pull('push_by_returning') }}" """)
+
 pull.set_upstream([push1, push2])
+bash.set_upstream(pull)

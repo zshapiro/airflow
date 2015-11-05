@@ -69,8 +69,8 @@ class CoreTest(unittest.TestCase):
             job.run()
 
     def test_pickling(self):
-        dp = self.dag.pickle()
-        assert self.dag.dag_id == dp.pickle.dag_id
+        dp = self.dag_bash.pickle()
+        assert self.dag_bash.dag_id == dp.pickle.dag_id
 
     def test_rich_comparison_ops(self):
 
@@ -251,7 +251,7 @@ class CoreTest(unittest.TestCase):
         job.run()
 
     def test_scheduler_job(self):
-        job = jobs.SchedulerJob(dag_id='example_bash_operator', test_mode=True)
+        job = jobs.SchedulerJob(dag_id='example_bash_operator', num_runs=4)
         job.run()
 
     def test_raw_job(self):
@@ -260,6 +260,17 @@ class CoreTest(unittest.TestCase):
             task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
         ti.run(force=True)
+
+    def test_pool(self):
+        POOL = 'test_pool'
+        session = Session()
+        if not session.query(models.Pool).filter_by(pool=POOL).first():
+            session.add(models.Pool(pool=POOL, slots=1))
+        session.commit()
+        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.dag_bash.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE)
 
     def test_doctests(self):
         modules = [utils, macros]

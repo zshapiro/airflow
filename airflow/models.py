@@ -2267,7 +2267,7 @@ class DAG(object):
     def run(
             self, start_date=None, end_date=None, mark_success=False,
             include_adhoc=False, local=False, executor=None,
-            donot_pickle=conf.getboolean('core', 'donot_pickle'), 
+            donot_pickle=conf.getboolean('core', 'donot_pickle'),
             ignore_dependencies=False,
             pool=None):
         from airflow.jobs import BackfillJob

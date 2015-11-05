@@ -702,7 +702,7 @@ class BackfillJob(BaseJob):
                     succeeded.append(key)
                     tasks_to_run.pop(key)
                 elif (
-                        ti.state not in (State.SUCCESS, State.QUEUED) and 
+                        ti.state not in (State.SUCCESS, State.QUEUED) and
                         state == State.SUCCESS):
                     logging.error(
                         "The airflow run command failed "

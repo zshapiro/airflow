@@ -6,11 +6,11 @@ from hdfs import InsecureClient, HdfsError
 
 _kerberos_security_mode = configuration.get("core", "security") == "kerberos"
 if _kerberos_security_mode:
-  try:
-    from hdfs.ext.kerberos import KerberosClient
-  except ImportError:
-    logging.error("Could not load the Kerberos extension for the WebHDFSHook.")
-    raise
+    try:
+        from hdfs.ext.kerberos import KerberosClient
+    except ImportError:
+        logging.error("Could not load the Kerberos extension for the WebHDFSHook.")
+        raise
 from airflow.utils import AirflowException
 
 

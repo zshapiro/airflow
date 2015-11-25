@@ -22,7 +22,6 @@ jinja2
 markdown
 nose
 nose-exclude
-nplusone
 pandas
 pygments
 pyhive

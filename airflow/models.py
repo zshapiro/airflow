@@ -212,24 +212,28 @@ class DagBag(object):
         Fails tasks that haven't had a heartbeat in too long
         """
         from airflow.jobs import LocalTaskJob as LJ
+        TI = TaskInstance
         logging.info("Finding 'running' jobs without a recent heartbeat")
         secs = (
             configuration.getint('scheduler', 'job_heartbeat_sec') * 3) + 120
         limit_dttm = datetime.now() - timedelta(seconds=secs)
         logging.info(
             "Failing jobs without heartbeat after {}".format(limit_dttm))
-        jobs = (
-            session
-            .query(LJ)
+
+        tis = (
+            session.query(TI)
+            .join(LJ)
+            .filter(TI.job_id == LJ.id)
+            .filter(TI.state == State.RUNNING)
             .filter(
-                LJ.state == State.RUNNING,
-                LJ.latest_heartbeat < limit_dttm)
+                or_(
+                    LJ.state != State.RUNNING,
+                    LJ.latest_heartbeat < limit_dttm,
+                ))
             .all()
         )
-        for job in jobs:
-            ti = session.query(TaskInstance).filter_by(
-                job_id=job.id, state=State.RUNNING).first()
-            logging.info("Failing job_id '{}'".format(job.id))
+
+        for ti in tis:
             if ti and ti.dag_id in self.dags:
                 dag = self.dags[ti.dag_id]
                 if ti.task_id in dag.task_ids:
@@ -237,8 +241,6 @@ class DagBag(object):
                     ti.task = task
                     ti.handle_failure("{} killed as zombie".format(ti))
                     logging.info('Marked zombie job {} as failed'.format(ti))
-            else:
-                job.state = State.FAILED
         session.commit()
 
     def bag_dag(self, dag, parent_dag, root_dag):

@@ -222,8 +222,7 @@ class DagBag(object):
 
         tis = (
             session.query(TI)
-            .join(LJ)
-            .filter(TI.job_id == LJ.id)
+            .join(LJ, TI.job_id == LJ.id)
             .filter(TI.state == State.RUNNING)
             .filter(
                 or_(
@@ -234,7 +233,7 @@ class DagBag(object):
         )
 
         for ti in tis:
-            if ti and ti.dag_id in self.dags:
+            if ti.dag_id in self.dags:
                 dag = self.dags[ti.dag_id]
                 if ti.task_id in dag.task_ids:
                     task = dag.get_task(ti.task_id)
